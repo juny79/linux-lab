@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>linux-lab | 단계별 실무 커리큘럼 & 시나리오 플랫폼</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #0b1120; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; }
+    .terminal-box { background: #020617; font-family: 'Consolas', 'Courier New', monospace; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <!-- Header -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3 cursor-pointer" onclick="showCatalog()">
+      <span class="text-xl font-bold text-emerald-400">🐧 linux-lab</span>
+      <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300">v0.4.0 Curriculum & 12 Scenarios</span>
+    </div>
+    <div class="flex items-center gap-4 text-sm">
+      <div id="userStats" class="text-slate-300"></div>
+      <select id="tierSelect" onchange="changeTier(this.value)" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-emerald-300">
+        <option value="Free">Tier: Free</option>
+        <option value="Pro">Tier: Pro</option>
+        <option value="Executive">Tier: Executive</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-6 max-w-7xl w-full mx-auto">
+    <!-- Curriculum Roadmap View -->
+    <section id="catalogView">
+      <div class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 id="currTitle" class="text-2xl font-bold text-white">리눅스 엔지니어 실무 역량 커리큘럼</h1>
+          <p class="text-slate-400 text-sm mt-1">단일 서버 장애 복구(Junior)부터 고가용성·자동화(Mid), 커널·포렌식(Senior), 기술 거버넌스(C-Level)까지 단계별로 성장하세요.</p>
+        </div>
+        <div id="badgeList" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- 6 Competency Axes Bar -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 mb-8">
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">나의 6대 실무 역량 프로파일 (완료 시나리오 기반 실시간 산출)</div>
+        <div id="competencyGrid" class="grid grid-cols-2 md:grid-cols-6 gap-4"></div>
+      </div>
+
+      <!-- Level Tracks -->
+      <div id="tracksContainer" class="space-y-8"></div>
+    </section>
+
+    <!-- Terminal Workspace View -->
+    <section id="workspaceView" class="hidden">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <span id="wsLevel" class="text-xs px-2 py-0.5 rounded bg-emerald-900 text-emerald-300 font-semibold"></span>
+          <h2 id="wsTitle" class="text-xl font-bold text-white inline ml-2"></h2>
+        </div>
+        <button onclick="showCatalog()" class="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded">← 커리큘럼으로</button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <!-- Left Panel: Learning Objectives + Ticket + Metrics + Slack -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="bg-slate-900 border border-emerald-900/60 rounded-lg p-4">
+            <div class="text-xs font-semibold text-emerald-400 mb-1.5">🎯 단계별 학습 목표 (Learning Objectives)</div>
+            <ul id="wsObjectives" class="list-disc list-inside text-xs text-slate-300 space-y-1"></ul>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+            <div class="flex justify-between text-xs text-amber-400 font-semibold mb-1">
+              <span id="ticketId"></span>
+              <span id="ticketPriority"></span>
+            </div>
+            <h3 id="ticketSummary" class="font-bold text-white text-sm"></h3>
+            <p id="ticketDesc" class="text-xs text-slate-300 mt-2 leading-relaxed"></p>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+            <div class="text-xs font-semibold text-slate-400 mb-2">실시간 노드 메트릭</div>
+            <div class="space-y-2 text-xs">
+              <div>CPU: <span id="mCpu">0</span>%<div class="w-full bg-slate-800 h-2 rounded mt-1"><div id="bCpu" class="bg-sky-500 h-2 rounded" style="width:0%"></div></div></div>
+              <div>Memory: <span id="mMem">0</span>%<div class="w-full bg-slate-800 h-2 rounded mt-1"><div id="bMem" class="bg-purple-500 h-2 rounded" style="width:0%"></div></div></div>
+              <div>Disk / IO: <span id="mDisk">0</span>%<div class="w-full bg-slate-800 h-2 rounded mt-1"><div id="bDisk" class="bg-rose-500 h-2 rounded" style="width:0%"></div></div></div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-semibold text-slate-400"># incident-alerts (가상 Slack)</span>
+              <button onclick="requestHint()" class="text-xs px-2 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-white">AI 동료 힌트</button>
+            </div>
+            <div id="slackFeed" class="space-y-2 text-xs max-h-44 overflow-y-auto"></div>
+          </div>
+        </div>
+
+        <!-- Right Panel: Terminal + Evaluation -->
+        <div class="lg:col-span-7 flex flex-col space-y-4">
+          <div class="terminal-box border border-slate-800 rounded-lg p-4 flex-1 flex flex-col min-h-[360px]">
+            <div class="text-xs text-slate-500 pb-2 border-b border-slate-800 mb-2">SSH Connected — Isolated MicroVM Sandbox (VLAN 30 Egress Blocked)</div>
+            <div id="termOutput" class="flex-1 text-xs text-emerald-300 whitespace-pre-wrap overflow-y-auto mb-3 max-h-72"></div>
+            <form onsubmit="sendCommand(event)" class="flex items-center gap-2 border-t border-slate-800 pt-2">
+              <span class="text-emerald-400 text-xs font-bold">root@lab:~#</span>
+              <input id="termInput" type="text" autocomplete="off" placeholder="명령어 입력 (예: df -h, help)" class="flex-1 bg-transparent text-xs text-white focus:outline-none" />
+              <button type="submit" class="text-xs px-3 py-1 bg-emerald-600 hover:bg-emerald-500 rounded text-white">실행</button>
+            </form>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+            <label class="block text-xs font-semibold text-slate-300 mb-2">포스트모템(Post-mortem) 작성 및 자동 채점 제출</label>
+            <textarea id="postmortemInput" rows="2" placeholder="장애 근본 원인, 조치 내용, 재발 방지 대책을 간단히 작성하세요..." class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs text-white mb-2"></textarea>
+            <button onclick="submitEvaluation()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 rounded text-sm font-bold text-white">조치 완료 및 자동 채점</button>
+            <div id="evalResult" class="hidden mt-3 p-3 rounded bg-slate-950 border border-slate-800 text-xs"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- C-Level Decision Simulator View -->
+    <section id="decisionView" class="hidden">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="decTitle" class="text-xl font-bold text-amber-400"></h2>
+        <button onclick="showCatalog()" class="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded">← 커리큘럼으로</button>
+      </div>
+      <div class="bg-slate-900 border border-amber-900/50 rounded-lg p-4 mb-4">
+        <div class="text-xs font-semibold text-amber-400 mb-1">🏛️ C-Level 전략 학습 목표</div>
+        <ul id="decObjectives" class="list-disc list-inside text-xs text-slate-300 space-y-1"></ul>
+      </div>
+      <div id="kpiGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5"></div>
+      <div id="decisionBody" class="bg-slate-900 border border-slate-800 rounded-lg p-6"></div>
+    </section>
+  </main>
+
+  <script>
+    let currentSessionId = null;
+    let currentScenario = null;
+    let currentStageIdx = 0;
+
+    async function init() {
+      await loadUser();
+      await loadCurriculum();
+    }
+
+    async function loadUser() {
+      const res = await fetch('/api/user');
+      const u = await res.json();
+      document.getElementById('tierSelect').value = u.tier;
+      document.getElementById('userStats').innerText = `🔥 ${u.streak_days}일 연속 | ✅ 이수 ${u.completed_count}/12 시나리오`;
+    }
+
+    async function changeTier(tier) {
+      await fetch('/api/user/tier', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ tier }) });
+      await loadUser();
+    }
+
+    async function loadCurriculum() {
+      const res = await fetch('/api/curriculum');
+      const curr = await res.json();
+      document.getElementById('currTitle').innerText = curr.title;
+
+      // Badges
+      const badgeEl = document.getElementById('badgeList');
+      badgeEl.innerHTML = curr.earned_badges.length
+        ? curr.earned_badges.map(b => `<span class="text-xs px-3 py-1 rounded-full bg-amber-950 text-amber-300 border border-amber-700 font-semibold">${b}</span>`).join('')
+        : `<span class="text-xs text-slate-500">트랙 3단계를 모두 평균 80점 이상 이수하면 레벨 승급 배지가 수여됩니다.</span>`;
+
+      // 6 Competency Axes
+      document.getElementById('competencyGrid').innerHTML = curr.competency_profile.map(c => `
+        <div class="bg-slate-950 border border-slate-800 rounded-lg p-3">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-300 font-medium">${c.label}</span>
+            <span class="text-emerald-400 font-bold">${c.score}%</span>
+          </div>
+          <div class="w-full bg-slate-800 h-1.5 rounded"><div class="bg-emerald-500 h-1.5 rounded" style="width:${c.score}%"></div></div>
+        </div>
+      `).join('');
+
+      // Tracks & Progressive Modules
+      document.getElementById('tracksContainer').innerHTML = curr.tracks.map(t => `
+        <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-4 border-b border-slate-800">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-bold px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">${t.level}</span>
+                <span class="text-xs text-slate-400">${t.target_audience}</span>
+                ${t.promoted ? `<span class="text-xs px-2 py-0.5 rounded bg-amber-900/60 text-amber-300 font-semibold">승급 완료 (${t.badge})</span>` : ''}
+              </div>
+              <p class="text-sm text-slate-200 mt-2">${t.summary}</p>
+              <p class="text-xs text-indigo-300 mt-1">💡 교육 설계 의도: ${t.pedagogical_goal}</p>
+            </div>
+            <div class="text-right text-xs text-slate-400 shrink-0">
+              <div>진척도: <strong class="text-white">${t.completed_steps} / ${t.total_steps}</strong> 단계</div>
+              <div>평균 점수: <strong class="text-emerald-400">${t.avg_score}점</strong> (승급 기준 ${t.promotion_criteria.min_avg_score}점)</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+            ${t.modules.map(m => {
+              const s = m.scenario;
+              return `
+                <div class="bg-slate-950 border ${m.completed ? 'border-emerald-700/70' : 'border-slate-800'} hover:border-emerald-500/60 rounded-xl p-4 flex flex-col justify-between transition">
+                  <div>
+                    <div class="flex justify-between items-center mb-2">
+                      <span class="text-xs font-bold text-sky-400">STEP ${m.step}</span>
+                      <div class="flex items-center gap-1.5">
+                        ${m.completed ? `<span class="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-300">완료 ${m.best_score}점</span>` : ''}
+                        <span class="text-xs px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">${s.required_tier}</span>
+                      </div>
+                    </div>
+                    <h3 class="text-sm font-bold text-white leading-snug">${s.title}</h3>
+                    <p class="text-xs text-slate-400 mt-2">핵심 훈련: ${m.focus}</p>
+                    ${!m.prerequisites_met && m.prerequisites.length ? `<p class="text-[11px] text-amber-400/90 mt-2">권장 선수 과목: ${m.prerequisites.join(', ')}</p>` : ''}
+                  </div>
+                  <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
+                    <span>${s.category} · ${s.estimated_minutes}분</span>
+                    <button onclick="startScenario('${s.id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-semibold">실습 시작</button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function showCatalog() {
+      document.getElementById('catalogView').classList.remove('hidden');
+      document.getElementById('workspaceView').classList.add('hidden');
+      document.getElementById('decisionView').classList.add('hidden');
+      loadUser();
+      loadCurriculum();
+    }
+
+    async function startScenario(scenarioId) {
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ scenario_id: scenarioId })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert('구독 티어 제한: ' + err.error);
+        return;
+      }
+      const data = await res.json();
+      currentSessionId = data.session_id;
+      currentScenario = data.scenario;
+
+      document.getElementById('catalogView').classList.add('hidden');
+      if (currentScenario.mode === 'decision') {
+        openDecisionView();
+      } else {
+        openTerminalView(data.metrics);
+      }
+    }
+
+    function openTerminalView(metrics) {
+      document.getElementById('workspaceView').classList.remove('hidden');
+      document.getElementById('wsLevel').innerText = `${currentScenario.level} · STEP ${currentScenario.step}`;
+      document.getElementById('wsTitle').innerText = currentScenario.title;
+      document.getElementById('wsObjectives').innerHTML = (currentScenario.learning_objectives || []).map(o => `<li>${o}</li>`).join('');
+      document.getElementById('ticketId').innerText = currentScenario.ticket.id;
+      document.getElementById('ticketPriority').innerText = currentScenario.ticket.priority;
+      document.getElementById('ticketSummary').innerText = currentScenario.ticket.summary;
+      document.getElementById('ticketDesc').innerText = currentScenario.ticket.description;
+      document.getElementById('termOutput').innerText = `Connected to ${currentScenario.topology[0].hostname}. Type 'help' to see available diagnostic commands.\n`;
+      document.getElementById('evalResult').classList.add('hidden');
+      document.getElementById('postmortemInput').value = '';
+      updateMetrics(metrics);
+
+      const feed = document.getElementById('slackFeed');
+      feed.innerHTML = (currentScenario.slack_alerts || []).map(a => `
+        <div class="p-2 rounded bg-slate-950 border border-slate-800">
+          <div class="font-bold text-sky-400">${a.sender} <span class="text-slate-500 font-normal">${a.time}</span></div>
+          <div class="text-slate-300 mt-0.5">${a.message}</div>
+        </div>
+      `).join('');
+    }
+
+    function updateMetrics(m) {
+      document.getElementById('mCpu').innerText = m.cpu;
+      document.getElementById('bCpu').style.width = m.cpu + '%';
+      document.getElementById('mMem').innerText = m.memory;
+      document.getElementById('bMem').style.width = m.memory + '%';
+      document.getElementById('mDisk').innerText = m.disk;
+      document.getElementById('bDisk').style.width = m.disk + '%';
+    }
+
+    async function sendCommand(e) {
+      e.preventDefault();
+      const input = document.getElementById('termInput');
+      const cmd = input.value.trim();
+      if (!cmd) return;
+      input.value = '';
+      const outEl = document.getElementById('termOutput');
+      outEl.innerText += `\nroot@lab:~# ${cmd}\n`;
+      const res = await fetch(`/api/sessions/${currentSessionId}/exec`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ command: cmd })
+      });
+      const data = await res.json();
+      outEl.innerText += data.output + '\n';
+      outEl.scrollTop = outEl.scrollHeight;
+      updateMetrics(data.metrics);
+    }
+
+    async function requestHint() {
+      const res = await fetch(`/api/sessions/${currentSessionId}/hint`, { method: 'POST' });
+      const data = await res.json();
+      const feed = document.getElementById('slackFeed');
+      feed.innerHTML += `
+        <div class="p-2 rounded bg-indigo-950/60 border border-indigo-800">
+          <div class="font-bold text-indigo-300">${data.sender}</div>
+          <div class="text-slate-200 mt-0.5">${data.hint}</div>
+        </div>
+      `;
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    async function submitEvaluation() {
+      const pm = document.getElementById('postmortemInput').value;
+      const res = await fetch(`/api/sessions/${currentSessionId}/evaluate`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ postmortem: pm })
+      });
+      const data = await res.json();
+      const el = document.getElementById('evalResult');
+      el.classList.remove('hidden');
+      el.innerHTML = `
+        <div class="font-bold text-sm ${data.passed ? 'text-emerald-400' : 'text-rose-400'}">
+          ${data.passed ? '✅ 장애 복구 성공!' : '❌ 아직 복구가 완료되지 않았습니다.'} (총점: ${data.total_score}점 / MTTR: ${data.mttr_seconds}초)
+        </div>
+        <ul class="mt-2 space-y-1">
+          ${data.state_details.map(d => `<li>${d.passed ? '✔️' : '✖️'} ${d.check}</li>`).join('')}
+        </ul>
+        <div class="mt-2 text-indigo-300">AI 리뷰: ${data.ai_review}</div>
+      `;
+      loadUser();
+    }
+
+    function openDecisionView() {
+      currentStageIdx = 0;
+      document.getElementById('decisionView').classList.remove('hidden');
+      document.getElementById('decTitle').innerText = `${currentScenario.level} · STEP ${currentScenario.step} — ${currentScenario.title}`;
+      document.getElementById('decObjectives').innerHTML = (currentScenario.learning_objectives || []).map(o => `<li>${o}</li>`).join('');
+      renderKpis(currentScenario.initial_kpis);
+      renderStage();
+    }
+
+    function renderKpis(kpis) {
+      const labels = { budget_score: '예산 건전성', sla_score: 'SLA 준수', security_score: '보안 신뢰도', morale_score: '팀 사기' };
+      document.getElementById('kpiGrid').innerHTML = Object.entries(kpis).map(([k, v]) => `
+        <div class="bg-slate-900 border border-slate-800 rounded-lg p-4 text-center">
+          <div class="text-xs text-slate-400">${labels[k] || k}</div>
+          <div class="text-2xl font-bold text-emerald-400 mt-1">${v}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderStage(prevFeedback = null) {
+      const stage = currentScenario.stages[currentStageIdx];
+      const body = document.getElementById('decisionBody');
+      if (!stage) {
+        body.innerHTML = `
+          <div class="text-emerald-400 font-bold text-lg mb-2">✅ C레벨 위기관리 시뮬레이션 완료</div>
+          <p class="text-sm text-slate-300 mb-4">${prevFeedback || ''}</p>
+          <button onclick="showCatalog()" class="px-4 py-2 bg-emerald-600 rounded text-sm font-bold text-white">커리큘럼으로 돌아가기</button>
+        `;
+        return;
+      }
+      body.innerHTML = `
+        ${prevFeedback ? `<div class="mb-4 p-3 rounded bg-indigo-950/60 border border-indigo-800 text-xs text-indigo-200">이전 결정 피드백: ${prevFeedback}</div>` : ''}
+        <div class="text-xs text-amber-400 font-semibold mb-1">STAGE ${stage.stage_id}</div>
+        <p class="text-base text-white font-semibold mb-4">${stage.situation}</p>
+        <div class="space-y-3">
+          ${stage.options.map(o => `
+            <button onclick="chooseOption(${stage.stage_id}, '${o.id}')" class="w-full text-left p-4 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700 text-sm text-slate-200 transition">
+              ${o.label}
+            </button>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    async function chooseOption(stageId, optionId) {
+      const res = await fetch(`/api/sessions/${currentSessionId}/decision`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ stage_id: stageId, option_id: optionId })
+      });
+      const data = await res.json();
+      renderKpis(data.kpis);
+      currentStageIdx++;
+      renderStage(data.feedback);
+      loadUser();
+    }
+
+    init();
+  </script>
+</body>
+</html>

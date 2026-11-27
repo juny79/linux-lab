@@ -1,0 +1,111 @@
+{
+  "id": "j01-disk-full",
+  "step": 1,
+  "prerequisites": [],
+  "title": "디스크 100% 고갈로 인한 DB 기동 실패 복구",
+  "level": "Junior",
+  "required_tier": "Free",
+  "mode": "terminal",
+  "estimated_minutes": 15,
+  "category": "OS / Storage",
+  "learning_objectives": [
+    "df -h 및 du -sh를 활용해 파일시스템 풀(Full) 원인을 신속히 특정한다.",
+    "열려 있는 로그 파일 삭제(rm) 시 발생할 수 있는 fd 미해제 문제를 이해하고 truncate로 안전하게 비운다.",
+    "공간 확보 후 systemd 기반 데이터베이스 데몬을 재기동하고 상태를 검증한다."
+  ],
+  "ticket": {
+    "id": "INC-1042",
+    "priority": "P1 - Critical",
+    "reporter": "박민수 (백엔드 개발자)",
+    "summary": "결제 DB(postgresql)가 갑자기 중단되었고 재시작도 실패합니다.",
+    "description": "방금 전부터 결제 API에서 DB 커넥션 에러가 쏟아지고 있습니다. 서버(db-prod-01)에 접속해서 원인 파악 후 DB를 정상화해 주세요."
+  },
+  "slack_alerts": [
+    {
+      "sender": "AlertManager Bot",
+      "time": "09:12",
+      "message": "[FIRING] DiskSpaceCritical on db-prod-01 (/var/log usage 100%)"
+    },
+    {
+      "sender": "박민수 (Backend)",
+      "time": "09:13",
+      "message": "안녕하세요! 결제 DB 죽어서 CS 들어오고 있어요. 빨리 확인 부탁드립니다!"
+    }
+  ],
+  "topology": [
+    { "hostname": "db-prod-01", "role": "PostgreSQL Primary", "vcpu": 1, "ram_mb": 512 }
+  ],
+  "initial_state": {
+    "large_log_exists": true,
+    "db_service_active": false
+  },
+  "metrics": { "cpu": 18, "memory": 42, "disk": 100 },
+  "command_rules": [
+    {
+      "match_all": ["df"],
+      "require_state": { "large_log_exists": true },
+      "output": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/vda1        20G   20G     0 100% /var/log"
+    },
+    {
+      "match_all": ["df"],
+      "require_state": { "large_log_exists": false },
+      "output": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/vda1        20G  4.8G   15G  24% /var/log"
+    },
+    {
+      "match_all": ["du", "/var/log"],
+      "require_state": { "large_log_exists": true },
+      "output": "18G\t/var/log/app-debug.log\n12M\t/var/log/syslog"
+    },
+    {
+      "match_all": ["du", "/var/log"],
+      "require_state": { "large_log_exists": false },
+      "output": "0\t/var/log/app-debug.log\n12M\t/var/log/syslog"
+    },
+    {
+      "match_all": ["truncate", "/var/log/app-debug.log"],
+      "set_state": { "large_log_exists": false },
+      "set_metrics": { "disk": 24 },
+      "output": "Cleaned /var/log/app-debug.log safely via truncate. Disk usage dropped to 24%."
+    },
+    {
+      "match_all": ["rm", "/var/log/app-debug.log"],
+      "set_state": { "large_log_exists": false },
+      "set_metrics": { "disk": 24 },
+      "output": "Removed /var/log/app-debug.log. Disk usage dropped to 24%."
+    },
+    {
+      "match_all": ["systemctl", "status", "postgresql"],
+      "require_state": { "db_service_active": false },
+      "output": "● postgresql.service - PostgreSQL RDBMS\n   Active: failed (Result: exit-code) - No space left on device"
+    },
+    {
+      "match_all": ["systemctl", "status", "postgresql"],
+      "require_state": { "db_service_active": true },
+      "output": "● postgresql.service - PostgreSQL RDBMS\n   Active: active (running)"
+    },
+    {
+      "match_all": ["systemctl", "postgresql"],
+      "match_any": ["restart", "start"],
+      "require_state": { "large_log_exists": true },
+      "output": "Job for postgresql.service failed: No space left on device."
+    },
+    {
+      "match_all": ["systemctl", "postgresql"],
+      "match_any": ["restart", "start"],
+      "require_state": { "large_log_exists": false },
+      "set_state": { "db_service_active": true },
+      "output": "postgresql.service restarted successfully. Status: active (running)"
+    }
+  ],
+  "state_checks": [
+    { "key": "large_log_exists", "expected": false, "description": "디스크 공간 확보 (/var/log 거대 로그 정리)" },
+    { "key": "db_service_active", "expected": true, "description": "PostgreSQL 서비스 정상 기동" }
+  ],
+  "hints": [
+    "먼저 `df -h` 명령어로 어느 파티션의 디스크가 가득 찼는지 확인해 보세요.",
+    "`du -sh /var/log/*`로 용량을 가장 많이 차지하는 로그 파일을 찾아보세요.",
+    "거대 로그 파일(`/var/log/app-debug.log`)을 `truncate -s 0 /var/log/app-debug.log`로 비운 뒤 `systemctl restart postgresql`을 실행해 보세요."
+  ],
+  "postmortem_keywords": ["디스크", "로그", "log", "logrotate", "알람", "모니터링"],
+  "skill_weights": { "os_kernel": 30, "troubleshooting": 50, "automation": 20 }
+}

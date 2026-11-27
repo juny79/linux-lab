@@ -1,0 +1,78 @@
+{
+  "id": "s03-incident-forensics",
+  "step": 3,
+  "prerequisites": ["s02-ebpf-io-latency"],
+  "title": "침해 사고 포렌식 — 위장 악성 프로세스·크론 백도어 제거 및 SSH 하드닝",
+  "level": "Senior",
+  "required_tier": "Pro",
+  "mode": "terminal",
+  "estimated_minutes": 40,
+  "category": "Security / Forensics",
+  "learning_objectives": [
+    "비정상 아웃바운드 연결(ss -tunp)을 통해 시스템 데몬으로 위장한 악성 프로세스를 식별한다.",
+    "단순 프로세스 종료 시 재감염을 일으키는 지속성 메커니즘(crontab 백도어)을 함께 제거하고 sshd 보안 설정을 강화한다."
+  ],
+  "ticket": {
+    "id": "SEC-3309",
+    "priority": "P0 - Security Incident",
+    "reporter": "보안관제센터(SOC)",
+    "summary": "레거시 배치 서버(batch-legacy-01)에서 외부 채굴 풀 IP(198.51.100.77:4444) 연결 탐지",
+    "description": "방화벽에서 의심스러운 C2/마이닝 연결 시도가 차단되고 있으며 CPU가 99%입니다. 침해 흔적을 포렌식하여 악성 프로세스와 지속성(cron)을 제거하고 SSH root 원격 로그인을 비활성화하세요."
+  },
+  "slack_alerts": [
+    {
+      "sender": "Wazuh SIEM",
+      "time": "04:08",
+      "message": "[CRITICAL] Outbound C2/Mining connection attempt from batch-legacy-01 to 198.51.100.77:4444"
+    }
+  ],
+  "topology": [
+    { "hostname": "batch-legacy-01", "role": "Legacy Batch Server", "vcpu": 4, "ram_mb": 4096 }
+  ],
+  "initial_state": {
+    "malware_killed": false,
+    "cron_cleaned": false,
+    "ssh_hardened": false
+  },
+  "metrics": { "cpu": 99, "memory": 72, "disk": 48 },
+  "command_rules": [
+    {
+      "match_all": ["ss"],
+      "require_state": { "malware_killed": false },
+      "output": "Netid State   Local Address:Port   Peer Address:Port     Process\ntcp   SYN-SENT 10.30.0.50:51244    198.51.100.77:4444    users:((\"kworker-sys\",pid=6613,fd=3))"
+    },
+    {
+      "match_all": ["crontab", "-l"],
+      "require_state": { "cron_cleaned": false },
+      "output": "*/5 * * * * /tmp/.X11-unix/kworker-sys --donate-level=1 >/dev/null 2>&1"
+    },
+    {
+      "match_all": ["crontab", "-r"],
+      "set_state": { "cron_cleaned": true },
+      "output": "Removed malicious root crontab persistence entry."
+    },
+    {
+      "match_all": ["kill", "6613"],
+      "set_state": { "malware_killed": true },
+      "set_metrics": { "cpu": 11 },
+      "output": "Terminated disguised malicious process PID 6613 (/tmp/.X11-unix/kworker-sys)."
+    },
+    {
+      "match_all": ["sed", "PermitRootLogin", "sshd_config"],
+      "set_state": { "ssh_hardened": true },
+      "output": "Hardened /etc/ssh/sshd_config: PermitRootLogin set to no."
+    }
+  ],
+  "state_checks": [
+    { "key": "cron_cleaned", "expected": true, "description": "악성 재실행 백도어(crontab -r) 제거" },
+    { "key": "malware_killed", "expected": true, "description": "위장 악성 프로세스(PID 6613) 강제 종료" },
+    { "key": "ssh_hardened", "expected": true, "description": "sshd_config 내 PermitRootLogin no 하드닝 적용" }
+  ],
+  "hints": [
+    "`ss -tunp`로 외부 `198.51.100.77:4444`와 통신을 시도하는 위장 프로세스 PID(6613)를 확인하세요.",
+    "`crontab -l`로 확인 후 `crontab -r`로 5분마다 되살아나는 백도어 스케줄을 먼저 삭제하고 `kill -9 6613`을 실행하세요.",
+    "`sed -i 's/PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config`로 루트 직접 로그인을 차단하세요."
+  ],
+  "postmortem_keywords": ["포렌식", "크론", "crontab", "백도어", "ssh", "permitrootlogin"],
+  "skill_weights": { "security": 60, "os_kernel": 20, "troubleshooting": 20 }
+}

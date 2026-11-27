@@ -1,0 +1,94 @@
+{
+  "id": "j02-systemd-unit-typo",
+  "step": 2,
+  "prerequisites": ["j01-disk-full"],
+  "title": "배포 후 systemd 유닛 설정 오류로 인한 데몬 무한 재시작 복구",
+  "level": "Junior",
+  "required_tier": "Free",
+  "mode": "terminal",
+  "estimated_minutes": 15,
+  "category": "OS / Service Management",
+  "learning_objectives": [
+    "journalctl -u 명령어로 실패한 서비스의 종료 코드(status=203/EXEC) 원인을 파악한다.",
+    "systemd 유닛 파일 수정 후 반드시 daemon-reload를 수행해야 하는 구조를 이해한다.",
+    "서비스 복구 후 Active 상태와 프로세스 기동을 검증한다."
+  ],
+  "ticket": {
+    "id": "INC-1089",
+    "priority": "P2 - High",
+    "reporter": "정우성 (결제팀 리드)",
+    "summary": "신규 바이너리 배포 후 payment-api.service가 기동 직후 계속 죽습니다.",
+    "description": "수동으로 유닛 파일을 수정해 배포했는데 서비스가 activating (auto-restart) 상태에 머물러 있습니다. app-prod-02 서버를 확인해 주세요."
+  },
+  "slack_alerts": [
+    {
+      "sender": "Systemd Exporter",
+      "time": "11:20",
+      "message": "[WARNING] payment-api.service entered failed state (exit-code 203/EXEC)"
+    }
+  ],
+  "topology": [
+    { "hostname": "app-prod-02", "role": "Payment API Server", "vcpu": 1, "ram_mb": 512 }
+  ],
+  "initial_state": {
+    "unit_path_fixed": false,
+    "daemon_reloaded": false,
+    "service_running": false
+  },
+  "metrics": { "cpu": 25, "memory": 31, "disk": 40 },
+  "command_rules": [
+    {
+      "match_all": ["journalctl", "payment-api"],
+      "output": "Nov 27 11:20:01 app-prod-02 systemd[1]: payment-api.service: Main process exited, code=exited, status=203/EXEC\nNov 27 11:20:01 app-prod-02 systemd[912]: payment-api.service: Failed to execute /usr/local/bin/paymnt-api: No such file or directory"
+    },
+    {
+      "match_all": ["cat", "payment-api.service"],
+      "require_state": { "unit_path_fixed": false },
+      "output": "[Service]\nUser=app\nExecStart=/usr/local/bin/paymnt-api --port=8080\nRestart=always"
+    },
+    {
+      "match_all": ["cat", "payment-api.service"],
+      "require_state": { "unit_path_fixed": true },
+      "output": "[Service]\nUser=app\nExecStart=/usr/local/bin/payment-api --port=8080\nRestart=always"
+    },
+    {
+      "match_all": ["sed", "payment-api", "payment-api.service"],
+      "set_state": { "unit_path_fixed": true },
+      "output": "Updated ExecStart path to /usr/local/bin/payment-api in /etc/systemd/system/payment-api.service."
+    },
+    {
+      "match_all": ["systemctl", "daemon-reload"],
+      "set_state": { "daemon_reloaded": true },
+      "output": "Systemd unit configuration reloaded."
+    },
+    {
+      "match_all": ["systemctl", "restart", "payment-api"],
+      "require_state": { "unit_path_fixed": false },
+      "output": "Job for payment-api.service failed: status=203/EXEC (/usr/local/bin/paymnt-api not found)."
+    },
+    {
+      "match_all": ["systemctl", "restart", "payment-api"],
+      "require_state": { "unit_path_fixed": true, "daemon_reloaded": false },
+      "output": "Warning: The unit file changed on disk. Run 'systemctl daemon-reload' first."
+    },
+    {
+      "match_all": ["systemctl", "restart", "payment-api"],
+      "require_state": { "unit_path_fixed": true, "daemon_reloaded": true },
+      "set_state": { "service_running": true },
+      "set_metrics": { "cpu": 12 },
+      "output": "payment-api.service restarted successfully. Active: active (running)"
+    }
+  ],
+  "state_checks": [
+    { "key": "unit_path_fixed", "expected": true, "description": "유닛 파일 ExecStart 오타(paymnt-api -> payment-api) 수정" },
+    { "key": "daemon_reloaded", "expected": true, "description": "systemctl daemon-reload 수행" },
+    { "key": "service_running", "expected": true, "description": "payment-api.service 정상 구동" }
+  ],
+  "hints": [
+    "`journalctl -u payment-api`로 왜 프로세스 실행이 실패(203/EXEC)했는지 로그를 확인하세요.",
+    "`cat /etc/systemd/system/payment-api.service`로 확인 후 `sed -i 's/paymnt-api/payment-api/g' /etc/systemd/system/payment-api.service`로 오타를 수정하세요.",
+    "`systemctl daemon-reload` 후 `systemctl restart payment-api`를 실행하면 복구됩니다."
+  ],
+  "postmortem_keywords": ["systemd", "오타", "execstart", "daemon-reload", "배포", "자동화"],
+  "skill_weights": { "os_kernel": 40, "troubleshooting": 40, "automation": 20 }
+}

@@ -1,0 +1,61 @@
+{
+  "id": "s02-ebpf-io-latency",
+  "step": 2,
+  "prerequisites": ["s01-oom-killer"],
+  "title": "디스크 대역폭은 여유로우나 DB p99 지연 급증 — eBPF 기반 fsync 병목 추적",
+  "level": "Senior",
+  "required_tier": "Pro",
+  "mode": "terminal",
+  "estimated_minutes": 40,
+  "category": "Performance / eBPF",
+  "learning_objectives": [
+    "평균 대역폭(MB/s) 지표만으로는 보이지 않는 마이크로초/밀리초 단위의 블록 I/O 지연 분포를 eBPF(biolatency/biosnoop)로 계측한다.",
+    "동기식 fsync 폭탄을 유발하는 백그라운드 프로세스의 I/O 우선순위(ionice Idle 클래스)를 낮춰 핵심 DB 지연을 해소한다."
+  ],
+  "ticket": {
+    "id": "INC-3210",
+    "priority": "P1 - Critical",
+    "reporter": "결제 코어팀",
+    "summary": "CPU와 디스크 용량은 정상인데 DB 트랜잭션 커밋 지연(p99 > 2.8s)이 발생합니다.",
+    "description": "일반 top 명령어로는 특이점이 안 보입니다. 커널 eBPF 프로파일링 도구(biolatency, biosnoop)로 디스크 레이턴시 유발 프로세스를 찾아 I/O 스케줄링을 격리해 주세요."
+  },
+  "slack_alerts": [
+    {
+      "sender": "APM Latency Bot",
+      "time": "03:15",
+      "message": "[HIGH] DB commit WAL sync p99 jumped from 4ms -> 2,840ms on nvme0n1"
+    }
+  ],
+  "topology": [
+    { "hostname": "db-nvme-01", "role": "High-Throughput OLTP DB", "vcpu": 8, "ram_mb": 8192 }
+  ],
+  "initial_state": {
+    "ebpf_traced": false,
+    "io_throttled": false
+  },
+  "metrics": { "cpu": 38, "memory": 64, "disk": 92 },
+  "command_rules": [
+    {
+      "match_any": ["biolatency", "biosnoop"],
+      "set_state": { "ebpf_traced": true },
+      "output": "Tracing block device I/O... Hit Ctrl-C to end.\nPID    COMM           DISK    LAT(ms)\n7741   audit-shipper  nvme0n1 1840.22 (sync O_DSYNC storm)\n2104   postgres       nvme0n1 1790.10 (blocked behind audit-shipper)"
+    },
+    {
+      "match_all": ["ionice", "7741"],
+      "set_state": { "io_throttled": true },
+      "set_metrics": { "disk": 25, "cpu": 21 },
+      "output": "Set I/O scheduling class of PID 7741 (audit-shipper) to Idle (class 3). DB WAL sync p99 dropped to 3.8ms."
+    }
+  ],
+  "state_checks": [
+    { "key": "ebpf_traced", "expected": true, "description": "eBPF(biolatency/biosnoop)로 블록 I/O 지연 유발 PID(7741) 특정" },
+    { "key": "io_throttled", "expected": true, "description": "ionice로 audit-shipper(PID 7741) I/O 스케줄링 격리" }
+  ],
+  "hints": [
+    "`biosnoop` 또는 `biolatency` 명령어를 실행해 커널 블록 I/O 계층에서 어떤 PID가 지연을 유발하는지 추적하세요.",
+    "`audit-shipper`(PID 7741)가 무분별한 동기 I/O로 NVMe 큐를 막고 있습니다.",
+    "`ionice -c 3 -p 7741` 명령어로 해당 프로세스를 Idle I/O 클래스로 강등해 DB 트랜잭션을 보호하세요."
+  ],
+  "postmortem_keywords": ["ebpf", "biosnoop", "fsync", "ionice", "지연", "p99"],
+  "skill_weights": { "os_kernel": 50, "troubleshooting": 40, "automation": 10 }
+}

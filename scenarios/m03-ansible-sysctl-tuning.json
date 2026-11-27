@@ -1,0 +1,66 @@
+{
+  "id": "m03-ansible-sysctl-tuning",
+  "step": 3,
+  "prerequisites": ["m02-lvm-online-extend"],
+  "title": "대규모 트래픽 소켓 고갈 진단 및 Ansible 기반 커널 파라미터 일괄 튜닝",
+  "level": "Mid-level",
+  "required_tier": "Pro",
+  "mode": "terminal",
+  "estimated_minutes": 30,
+  "category": "Automation / Kernel Networking",
+  "learning_objectives": [
+    "ss -s 명령어로 TIME_WAIT 소켓 누적 및 로컬 임시 포트(ephemeral port) 고갈을 진단한다.",
+    "단일 서버 수동 수정(Configuration Drift)을 피하고 Ansible 플레이북으로 웹 플릿 전체에 sysctl 튜닝을 일괄 적용한다."
+  ],
+  "ticket": {
+    "id": "INC-2205",
+    "priority": "P1 - Critical",
+    "reporter": "강동원 (플랫폼 개발팀)",
+    "summary": "타임세일 시작 후 웹 서버들에서 백엔드 API 호출 시 Cannot assign requested address 발생",
+    "description": "web-01~04 노드 전체에서 외부/내부 연결 시 포트 고갈 에러가 납니다. 소켓 상태를 진단하고 준비된 Ansible 플레이북으로 커널 네트워크 튜닝을 일괄 배포하세요."
+  },
+  "slack_alerts": [
+    {
+      "sender": "Grafana Alert",
+      "time": "20:01",
+      "message": "[CRITICAL] TCP TIME_WAIT sockets > 28,000 across web-fleet (ephemeral port exhaustion)"
+    }
+  ],
+  "topology": [
+    { "hostname": "ansible-ctrl", "role": "Automation Bastion", "vcpu": 2, "ram_mb": 1024 },
+    { "hostname": "web-01..04", "role": "Web Fleet (4 Nodes)", "vcpu": 2, "ram_mb": 2048 }
+  ],
+  "initial_state": {
+    "socket_diagnosed": false,
+    "ansible_applied": false
+  },
+  "metrics": { "cpu": 65, "memory": 60, "disk": 35 },
+  "command_rules": [
+    {
+      "match_all": ["ss", "-s"],
+      "set_state": { "socket_diagnosed": true },
+      "output": "Total: 31240\nTCP:   29850 (estab 1420, closed 28190, orphaned 12, timewait 28150)"
+    },
+    {
+      "match_all": ["cat", "site-sysctl.yml"],
+      "output": "- hosts: web_fleet\n  tasks:\n    - sysctl: { name: net.ipv4.tcp_tw_reuse, value: '1', state: present }\n    - sysctl: { name: net.ipv4.ip_local_port_range, value: '10240 65535', state: present }"
+    },
+    {
+      "match_all": ["ansible-playbook", "site-sysctl.yml"],
+      "set_state": { "ansible_applied": true },
+      "set_metrics": { "cpu": 28 },
+      "output": "PLAY [web_fleet] *********************************************************\nchanged: [web-01]\nchanged: [web-02]\nchanged: [web-03]\nchanged: [web-04]\nPLAY RECAP: ok=4 changed=4 unreachable=0 failed=0"
+    }
+  ],
+  "state_checks": [
+    { "key": "socket_diagnosed", "expected": true, "description": "ss -s 명령어로 TIME_WAIT 소켓 고갈 상태 진단" },
+    { "key": "ansible_applied", "expected": true, "description": "ansible-playbook site-sysctl.yml로 4개 노드 일괄 튜닝 배포" }
+  ],
+  "hints": [
+    "먼저 `ss -s` 명령어로 현재 TCP `timewait` 소켓 수치를 확인해 원인을 진단하세요.",
+    "`cat site-sysctl.yml`로 적용할 커널 파라미터(`tcp_tw_reuse`, `ip_local_port_range`)를 검토하세요.",
+    "`ansible-playbook site-sysctl.yml`을 실행해 전체 웹 노드에 무중단 반영하세요."
+  ],
+  "postmortem_keywords": ["time_wait", "포트", "sysctl", "tcp_tw_reuse", "ansible", "keepalive"],
+  "skill_weights": { "networking": 40, "automation": 40, "os_kernel": 20 }
+}

@@ -1,0 +1,75 @@
+{
+  "id": "s01-oom-killer",
+  "step": 1,
+  "prerequisites": ["m03-ansible-sysctl-tuning"],
+  "title": "OOM Killer 발동 원인 분석 및 메모리 누수 프로세스 cgroup 격리",
+  "level": "Senior",
+  "required_tier": "Pro",
+  "mode": "terminal",
+  "estimated_minutes": 35,
+  "category": "Kernel / Memory",
+  "learning_objectives": [
+    "커널 링 버퍼(dmesg)에서 OOM Killer 발동 시점의 oom_score와 희생 프로세스를 분석한다.",
+    "단순 프로세스 종료에 그치지 않고 cgroup v2(systemd MemoryMax)로 Noisy Neighbor의 폭발 반경을 원천 격리한다."
+  ],
+  "ticket": {
+    "id": "INC-3104",
+    "priority": "P0 - Blocker",
+    "reporter": "SRE 온콜 팀",
+    "summary": "워커 노드(worker-prod-04)에서 핵심 주문 처리 프로세스가 반복적으로 강제 종료됨",
+    "description": "커널 로그에서 OOM Killer 흔적이 의심됩니다. 어떤 프로세스가 메모리를 누수시키고 있는지 분석하고 cgroups/systemd 메모리 제한을 적용해 시스템을 안정화하세요."
+  },
+  "slack_alerts": [
+    {
+      "sender": "Kernel Watchdog",
+      "time": "02:41",
+      "message": "[ALERT] Out of memory: Killed process 4812 (order-engine) total-vm:3145728kB"
+    }
+  ],
+  "topology": [
+    { "hostname": "worker-prod-04", "role": "App Worker Node", "vcpu": 4, "ram_mb": 4096 }
+  ],
+  "initial_state": {
+    "leak_process_killed": false,
+    "cgroup_limit_applied": false
+  },
+  "metrics": { "cpu": 87, "memory": 98, "disk": 52 },
+  "command_rules": [
+    {
+      "match_all": ["dmesg"],
+      "output": "[Tue Nov 27 02:41:12] Out of memory: Killed process 4812 (order-engine) total-vm:3145728kB, anon-rss:1920104kB"
+    },
+    {
+      "match_all": ["ps"],
+      "require_state": { "leak_process_killed": false },
+      "output": "USER       PID %CPU %MEM COMMAND\nroot      9021 82.4 79.5 /usr/local/bin/analytics-batch --unbounded-cache\napp       4890  4.1  8.2 /usr/local/bin/order-engine"
+    },
+    {
+      "match_all": ["ps"],
+      "require_state": { "leak_process_killed": true },
+      "output": "USER       PID %CPU %MEM COMMAND\napp       4890  4.1  8.2 /usr/local/bin/order-engine"
+    },
+    {
+      "match_all": ["kill", "9021"],
+      "set_state": { "leak_process_killed": true },
+      "set_metrics": { "memory": 28, "cpu": 15 },
+      "output": "Process 9021 (analytics-batch) terminated. System memory recovered to 28%."
+    },
+    {
+      "match_all": ["systemctl", "set-property", "MemoryMax="],
+      "set_state": { "cgroup_limit_applied": true },
+      "output": "Applied cgroup v2 MemoryMax limit to analytics-batch.service."
+    }
+  ],
+  "state_checks": [
+    { "key": "leak_process_killed", "expected": true, "description": "메모리 누수 프로세스(PID 9021) 종료" },
+    { "key": "cgroup_limit_applied", "expected": true, "description": "systemd cgroup MemoryMax 상한 제한 적용" }
+  ],
+  "hints": [
+    "`dmesg -T | grep -i oom`으로 OOM Killer 로그를 확인하고 `ps aux --sort=-%mem`으로 실제 메모리 점유 범인을 찾으세요.",
+    "비정상 메모리 누수 프로세스(`analytics-batch`, PID 9021)를 `kill -9 9021`로 종료하세요.",
+    "`systemctl set-property analytics-batch.service MemoryMax=512M`로 메모리 상한을 제한하여 재발을 방지하세요."
+  ],
+  "postmortem_keywords": ["oom", "메모리", "누수", "cgroup", "memorymax", "격리"],
+  "skill_weights": { "os_kernel": 50, "troubleshooting": 30, "security": 20 }
+}

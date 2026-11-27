@@ -1,0 +1,82 @@
+{
+  "version": "0.4.0",
+  "title": "리눅스 엔지니어 실무 역량 표준 커리큘럼 (Junior to C-Level)",
+  "competency_axes": [
+    { "key": "os_kernel", "label": "OS & 커널" },
+    { "key": "networking", "label": "네트워크 & HA" },
+    { "key": "security", "label": "보안 & 포렌식" },
+    { "key": "automation", "label": "자동화 & 스토리지" },
+    { "key": "troubleshooting", "label": "장애 진단(MTTR)" },
+    { "key": "decision_making", "label": "기술 전략 & 거버넌스" }
+  ],
+  "tracks": [
+    {
+      "id": "track-junior",
+      "level": "Junior",
+      "target_audience": "신입 ~ 2년차 시스템/인프라 엔지니어",
+      "badge": "🌱 Junior Operator",
+      "summary": "단일 리눅스 서버의 파일시스템, systemd 데몬, 권한 및 방화벽 등 현업 최빈출 기본 장애를 안전하게 진단하고 복구합니다.",
+      "pedagogical_goal": "관측(Observation) -> 원인 특정(Isolation) -> 안전한 조치(Safe Remediation) 습관 형성",
+      "promotion_criteria": {
+        "required_scenarios": ["j01-disk-full", "j02-systemd-unit-typo", "j03-permission-firewall"],
+        "min_avg_score": 80
+      },
+      "modules": [
+        { "step": 1, "scenario_id": "j01-disk-full", "focus": "파일시스템 용량 고갈 진단 및 무중단 로그 비우기(truncate)" },
+        { "step": 2, "scenario_id": "j02-systemd-unit-typo", "focus": "journalctl 로그 추적 및 systemd 유닛 설정 오류 복구" },
+        { "step": 3, "scenario_id": "j03-permission-firewall", "focus": "디렉토리 권한(chmod/chown) 및 호스트 방화벽(ufw) 복합 장애 해결" }
+      ]
+    },
+    {
+      "id": "track-mid",
+      "level": "Mid-level",
+      "target_audience": "3 ~ 5년차 인프라/데브옵스 엔지니어",
+      "badge": "⚙️ Mid-level Reliability Engineer",
+      "summary": "멀티 노드 환경에서 무중단 로드밸런싱(HA), 온라인 스토리지 확장(LVM), Ansible 기반 커널 네트워크 튜닝 자동화를 수행합니다.",
+      "pedagogical_goal": "서비스 중단 없는 온라인 작업(Zero-downtime Ops) 및 수동 조치의 코드화(IaC)",
+      "promotion_criteria": {
+        "required_scenarios": ["m01-haproxy-failover", "m02-lvm-online-extend", "m03-ansible-sysctl-tuning"],
+        "min_avg_score": 80
+      },
+      "modules": [
+        { "step": 1, "scenario_id": "m01-haproxy-failover", "focus": "L7 로드밸런서 헬스체크 장애 분석 및 무중단 reload" },
+        { "step": 2, "scenario_id": "m02-lvm-online-extend", "focus": "운영 중 DB 볼륨의 온라인 LVM 확장 및 XFS 파일시스템 증설" },
+        { "step": 3, "scenario_id": "m03-ansible-sysctl-tuning", "focus": "대규모 트래픽 소켓 고갈 진단 및 Ansible 기반 커널 파라미터 일괄 튜닝" }
+      ]
+    },
+    {
+      "id": "track-senior",
+      "level": "Senior",
+      "target_audience": "6 ~ 10년차 시니어 SRE / 플랫폼 아키텍트",
+      "badge": "🔬 Senior Kernel & Security Architect",
+      "summary": "커널 내부 동작(OOM Killer, cgroups v2), eBPF 기반 I/O 지연 프로파일링, 실전 침해 사고 포렌식 및 하드닝을 다룹니다.",
+      "pedagogical_goal": "블랙박스 현상의 커널 레벨 근본 원인 규명(Root Cause Analysis) 및 구조적 격리 설계",
+      "promotion_criteria": {
+        "required_scenarios": ["s01-oom-killer", "s02-ebpf-io-latency", "s03-incident-forensics"],
+        "min_avg_score": 85
+      },
+      "modules": [
+        { "step": 1, "scenario_id": "s01-oom-killer", "focus": "커널 OOM 로그 분석 및 systemd cgroup v2 메모리 상한 격리" },
+        { "step": 2, "scenario_id": "s02-ebpf-io-latency", "focus": "eBPF biolatency 기반 디스크 fsync 병목 추적 및 I/O 스케줄링 격리" },
+        { "step": 3, "scenario_id": "s03-incident-forensics", "focus": "악성 프로세스/크론 백도어 포렌식 제거 및 SSH 데몬 보안 하드닝" }
+      ]
+    },
+    {
+      "id": "track-clevel",
+      "level": "C-Level",
+      "target_audience": "Engineering Director / VP / CTO / CISO",
+      "badge": "🏛️ Executive Tech Leader",
+      "summary": "기술적 판단을 비즈니스 리스크(SLA, 예산, 규제 준수, 조직 사기)로 번역하여 대규모 재해, 보안 위기, 하이브리드 비용 최적화를 결정합니다.",
+      "pedagogical_goal": "불확실성 하에서의 트레이드오프 의사결정, 규제/대외 커뮤니케이션, 지속 가능한 SRE 거버넌스 수립",
+      "promotion_criteria": {
+        "required_scenarios": ["c01-region-dr", "c02-ransomware-governance", "c03-hybrid-finops-sre"],
+        "min_avg_score": 80
+      },
+      "modules": [
+        { "step": 1, "scenario_id": "c01-region-dr", "focus": "주 IDC 전면 장애 시 RPO/RTO 트레이드오프 및 투명한 위기 커뮤니케이션" },
+        { "step": 2, "scenario_id": "c02-ransomware-governance", "focus": "랜섬웨어 침해 시 망분리 결단, 협상 거부 원칙 및 72시간 법정 신고 준수" },
+        { "step": 3, "scenario_id": "c03-hybrid-finops-sre", "focus": "온프레미스 리패트리에이션(FinOps) 및 Error Budget 기반 배포 거버넌스" }
+      ]
+    }
+  ]
+}

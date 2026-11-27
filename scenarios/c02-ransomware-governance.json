@@ -1,0 +1,62 @@
+{
+  "id": "c02-ransomware-governance",
+  "step": 2,
+  "prerequisites": ["c01-region-dr"],
+  "title": "랜섬웨어 침해 및 개인정보 유출 협박 — CISO 위기 대응 및 법정 신고 거버넌스",
+  "level": "C-Level",
+  "required_tier": "Executive",
+  "mode": "decision",
+  "estimated_minutes": 25,
+  "category": "CISO / Security Governance",
+  "learning_objectives": [
+    "측면 이동(Lateral Movement) 차단을 위한 선제적 네트워크 격리와 단기 매출 손실 간의 우선순위를 판단한다.",
+    "몸값(Ransom) 지불의 법적·윤리적 리스크와 개인정보보호법상 72시간 내 법정 신고 의무를 준수한다."
+  ],
+  "ticket": {
+    "id": "CRISIS-02",
+    "priority": "P0 - Executive Security",
+    "reporter": "CISO / 법무실",
+    "summary": "사내 CI/CD 빌드망 랜섬웨어 감염 및 회원 DB 스냅샷 탈취 협박 수신",
+    "description": "공격 그룹이 24시간 내 50 BTC 지불을 요구하며 미지불 시 회원 정보 유출을 협박하고 있습니다. 망 격리 범위와 규제 기관 신고 전략을 결단하세요."
+  },
+  "initial_kpis": { "budget_score": 75, "sla_score": 80, "security_score": 60, "morale_score": 70 },
+  "stages": [
+    {
+      "stage_id": 1,
+      "situation": "빌드망에서 운영망으로 연결된 VPN 터널이 살아있습니다. 즉시 차단하면 신규 배포와 일부 내부 정산 시스템이 중단됩니다.",
+      "options": [
+        {
+          "id": "opt_isolate_all",
+          "label": "배포·정산 중단을 감수하고 즉시 망분리 차단 + 메모리/디스크 포렌식 이미지 보존",
+          "impact": { "budget_score": -5, "sla_score": -5, "security_score": 25, "morale_score": 5 },
+          "feedback": "측면 이동(Lateral Movement)을 골든타임 내에 차단하여 운영 DB 암호화 참사를 막고 법적 포렌식 증거를 확보했습니다."
+        },
+        {
+          "id": "opt_keep_running",
+          "label": "정산 마감을 위해 VPN을 유지한 채 백신 스캔만 우선 실행",
+          "impact": { "budget_score": -25, "sla_score": -20, "security_score": -30, "morale_score": -15 },
+          "feedback": "공격자가 살아있는 세션으로 운영망까지 침투하여 핵심 스토리지까지 추가 암호화되는 대형 참사로 번졌습니다."
+        }
+      ]
+    },
+    {
+      "stage_id": 2,
+      "situation": "일부 개발용 마스킹 미흡 고객 샘플 데이터가 유출된 정황이 확인되었습니다. 공격자는 비공개를 조건으로 금전을 요구합니다.",
+      "options": [
+        {
+          "id": "opt_report_law",
+          "label": "협상 거부, 클린 백업으로 클러스터 재구축 및 72시간 내 KISA·개인정보위 공식 신고·통지",
+          "impact": { "budget_score": -10, "sla_score": 5, "security_score": 15, "morale_score": 10 },
+          "feedback": "단기 비용은 발생했으나 법령 준수로 과징금 가중 처벌을 피하고 재침투 위협 없이 인프라를 클린 복구했습니다."
+        },
+        {
+          "id": "opt_pay_ransom",
+          "label": "평판 하락을 막기 위해 비공식적으로 금전을 지불하고 신고를 미룸",
+          "impact": { "budget_score": -35, "sla_score": -10, "security_score": -25, "morale_score": -20 },
+          "feedback": "공격자가 2차 협박을 감행했고, 추후 유출 사실이 발각되어 지연 신고에 따른 막대한 과징금과 형사 리스크가 발생했습니다."
+        }
+      ]
+    }
+  ],
+  "skill_weights": { "decision_making": 50, "security": 40, "os_kernel": 10 }
+}

@@ -1,0 +1,80 @@
+{
+  "id": "j03-permission-firewall",
+  "step": 3,
+  "prerequisites": ["j02-systemd-unit-typo"],
+  "title": "웹 서버 403 Forbidden 권한 오류 및 방화벽 HTTPS 포트 차단 해결",
+  "level": "Junior",
+  "required_tier": "Free",
+  "mode": "terminal",
+  "estimated_minutes": 20,
+  "category": "Security / Networking",
+  "learning_objectives": [
+    "리눅스 파일/디렉토리 실행 권한(x) 누락이 웹 서버 403 에러를 유발하는 원리를 이해한다.",
+    "호스트 방화벽(ufw) 상태를 점검하고 필요한 서비스 포트만 최소 권한으로 개방한다."
+  ],
+  "ticket": {
+    "id": "INC-1120",
+    "priority": "P2 - High",
+    "reporter": "한소희 (프론트엔드 개발자)",
+    "summary": "정적 랜딩 페이지 HTTP 접속 시 403 에러가 나고 HTTPS(443)는 아예 타임아웃됩니다.",
+    "description": "신규 캠페인 페이지를 /var/www/campaign 경로에 업로드했는데 고객들이 접속하지 못하고 있습니다. web-edge-01 서버를 점검해 주세요."
+  },
+  "slack_alerts": [
+    {
+      "sender": "Blackbox Exporter",
+      "time": "15:02",
+      "message": "[FIRING] ProbeFailed https://campaign.example.com (connection timeout) & HTTP 403"
+    }
+  ],
+  "topology": [
+    { "hostname": "web-edge-01", "role": "Nginx Static Web", "vcpu": 1, "ram_mb": 512 }
+  ],
+  "initial_state": {
+    "dir_perm_fixed": false,
+    "https_port_opened": false
+  },
+  "metrics": { "cpu": 10, "memory": 28, "disk": 35 },
+  "command_rules": [
+    {
+      "match_all": ["ls", "/var/www"],
+      "require_state": { "dir_perm_fixed": false },
+      "output": "drw------- 2 root root 4096 Nov 27 14:55 /var/www/campaign"
+    },
+    {
+      "match_all": ["ls", "/var/www"],
+      "require_state": { "dir_perm_fixed": true },
+      "output": "drwxr-xr-x 2 www-data www-data 4096 Nov 27 14:55 /var/www/campaign"
+    },
+    {
+      "match_all": ["chmod", "755", "/var/www/campaign"],
+      "set_state": { "dir_perm_fixed": true },
+      "output": "Changed mode of /var/www/campaign to 0755 (rwxr-xr-x). HTTP 200 OK verified."
+    },
+    {
+      "match_all": ["ufw", "status"],
+      "require_state": { "https_port_opened": false },
+      "output": "Status: active\nTo                         Action      From\n--                         ------      ----\n22/tcp                     ALLOW       Anywhere\n80/tcp                     ALLOW       Anywhere"
+    },
+    {
+      "match_all": ["ufw", "status"],
+      "require_state": { "https_port_opened": true },
+      "output": "Status: active\nTo                         Action      From\n--                         ------      ----\n22/tcp                     ALLOW       Anywhere\n80/tcp                     ALLOW       Anywhere\n443/tcp                    ALLOW       Anywhere"
+    },
+    {
+      "match_all": ["ufw", "allow", "443"],
+      "set_state": { "https_port_opened": true },
+      "output": "Rule added: 443/tcp ALLOW Anywhere. HTTPS probe recovered."
+    }
+  ],
+  "state_checks": [
+    { "key": "dir_perm_fixed", "expected": true, "description": "웹 루트(/var/www/campaign) 디렉토리 권한 755 복구" },
+    { "key": "https_port_opened", "expected": true, "description": "UFW 방화벽 443/tcp 포트 개방" }
+  ],
+  "hints": [
+    "`ls -ld /var/www/campaign`으로 Nginx 워커 프로세스가 읽고 진입할 권한이 있는지 확인하세요.",
+    "`chmod 755 /var/www/campaign`으로 디렉토리 접근 권한을 부여하세요.",
+    "`ufw status`로 방화벽을 확인한 뒤 `ufw allow 443/tcp`로 HTTPS 포트를 개방하세요."
+  ],
+  "postmortem_keywords": ["권한", "chmod", "755", "방화벽", "ufw", "443"],
+  "skill_weights": { "security": 40, "networking": 40, "troubleshooting": 20 }
+}

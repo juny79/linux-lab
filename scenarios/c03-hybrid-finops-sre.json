@@ -1,0 +1,62 @@
+{
+  "id": "c03-hybrid-finops-sre",
+  "step": 3,
+  "prerequisites": ["c02-ransomware-governance"],
+  "title": "클라우드 비용 급증 및 배포 불안정 — 하이브리드 FinOps 전환 및 Error Budget 도입",
+  "level": "C-Level",
+  "required_tier": "Executive",
+  "mode": "decision",
+  "estimated_minutes": 25,
+  "category": "CTO / FinOps & SRE Governance",
+  "learning_objectives": [
+    "예측 가능한 베이스라인 워크로드의 온프레미스 전환(Cloud Repatriation)을 통해 TCO를 최적화한다.",
+    "개발 속도(Feature Velocity)와 안정성(Reliability)의 갈등을 데이터 기반 Error Budget 정책으로 중재한다."
+  ],
+  "ticket": {
+    "id": "CRISIS-03",
+    "priority": "P1 - Strategic",
+    "reporter": "CFO & 이사회",
+    "summary": "퍼블릭 클라우드 비용이 매출의 35% 돌파, 동시에 주 3회 배포 장애 발생",
+    "description": "영업이익률 개선을 위한 인프라 구조조정과 잦은 장애로 지친 개발·SRE 조직 간의 갈등 해결책을 이사회에 보고해야 합니다."
+  },
+  "initial_kpis": { "budget_score": 55, "sla_score": 65, "security_score": 80, "morale_score": 60 },
+  "stages": [
+    {
+      "stage_id": 1,
+      "situation": "고정 트래픽(베이스라인 80%)과 스파이크 트래픽(이벤트 20%)이 모두 고가의 퍼블릭 클라우드 온디맨드로 운영 중입니다.",
+      "options": [
+        {
+          "id": "opt_hybrid_onprem",
+          "label": "베이스라인 워크로드는 온프레미스 리눅스 베어메탈 클러스터로 내재화하고 버스트 트래픽만 클라우드 활용",
+          "impact": { "budget_score": 30, "sla_score": 10, "security_score": 5, "morale_score": 5 },
+          "feedback": "하이브리드 아키텍처 전환으로 연간 인프라 원가를 48% 절감하면서도 이벤트 트래픽 탄력성을 유지했습니다."
+        },
+        {
+          "id": "opt_blind_cut",
+          "label": "아키텍처 변경 없이 전사 개발·스테이징 서버 및 모니터링 보존 기간 일괄 50% 강제 삭감",
+          "impact": { "budget_score": 15, "sla_score": -20, "security_score": -10, "morale_score": -20 },
+          "feedback": "검증 환경 부족과 로그 유실로 운영 장애가 오히려 급증하며 엔지니어 퇴사율이 높아졌습니다."
+        }
+      ]
+    },
+    {
+      "stage_id": 2,
+      "situation": "비즈니스 조직은 신규 기능 출시 가속을 요구하고, SRE 팀은 안정화 전 배포 중단을 요구하며 대립하고 있습니다.",
+      "options": [
+        {
+          "id": "opt_error_budget",
+          "label": "SLO(99.9%) 합의 및 월간 Error Budget 소진 시 자동으로 신규 배포 대신 안정화 스프린트로 전환하는 정책 명문화",
+          "impact": { "budget_score": 5, "sla_score": 20, "security_score": 5, "morale_score": 20 },
+          "feedback": "정치적 논쟁 대신 객관적 지표(Error Budget)로 출시 속도와 안정성이 자율 조절되는 성숙한 SRE 문화를 정착시켰습니다."
+        },
+        {
+          "id": "opt_manual_cab",
+          "label": "모든 배포 건마다 임원진 수동 결재 위원회(CAB)를 거치도록 통제 강화",
+          "impact": { "budget_score": -5, "sla_score": -5, "security_score": 0, "morale_score": -15 },
+          "feedback": "배포 주기가 길어지며 한 번에 큰 변경(Big-bang 배포)이 몰려 장애 복구 시간(MTTR)만 더 길어졌습니다."
+        }
+      ]
+    }
+  ],
+  "skill_weights": { "decision_making": 60, "automation": 20, "troubleshooting": 20 }
+}

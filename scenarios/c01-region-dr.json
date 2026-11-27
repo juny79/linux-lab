@@ -1,0 +1,62 @@
+{
+  "id": "c01-region-dr",
+  "step": 1,
+  "prerequisites": ["s03-incident-forensics"],
+  "title": "대규모 리전 장애 시 DR 전환 및 대외 위기관리 시뮬레이션",
+  "level": "C-Level",
+  "required_tier": "Executive",
+  "mode": "decision",
+  "estimated_minutes": 20,
+  "category": "Strategy / Crisis Management",
+  "learning_objectives": [
+    "불확실한 복구 시간(RTO)과 데이터 유실 범위(RPO) 사이의 비즈니스 손익 트레이드오프를 결단한다.",
+    "전면 장애 시 투명한 위기 커뮤니케이션으로 고객 신뢰와 엔지니어링 집중도를 보호한다."
+  ],
+  "ticket": {
+    "id": "CRISIS-01",
+    "priority": "P0 - Executive",
+    "reporter": "CTO / 위기대응본부",
+    "summary": "주 IDC(서울 리전) 전력 이중화 실패로 전체 서비스 마비",
+    "description": "현재 결제 및 핵심 API가 전면 중단되었습니다. 복구 예상 시간은 불투명하며, 부산 DR 센터로의 전환 여부와 고객/이사회 커뮤니케이션을 결정해야 합니다."
+  },
+  "initial_kpis": { "budget_score": 80, "sla_score": 75, "security_score": 85, "morale_score": 80 },
+  "stages": [
+    {
+      "stage_id": 1,
+      "situation": "장애 발생 15분 경과. 주 IDC 전력 복구까지 최소 2~4시간 소요 예상. 부산 DR 센터는 RPO 5분(최근 5분 데이터 유실 가능) 상태입니다.",
+      "options": [
+        {
+          "id": "opt_dr_now",
+          "label": "즉시 부산 DR 센터로 페일오버(Failover) 승인 (5분 데이터 정합성 사후 보정)",
+          "impact": { "budget_score": -10, "sla_score": 15, "security_score": 0, "morale_score": 5 },
+          "feedback": "신속한 SLA 방어 결정입니다. 다만 5분간의 결제 트랜잭션 유실에 대한 사후 대사(Reconciliation) 계획을 즉시 수립해야 합니다."
+        },
+        {
+          "id": "opt_wait_idc",
+          "label": "데이터 유실 방지를 위해 주 IDC 전력 복구까지 대기",
+          "impact": { "budget_score": 5, "sla_score": -30, "security_score": 0, "morale_score": -15 },
+          "feedback": "데이터 무결성은 지켰으나, 3시간 이상의 전면 장애로 SLA 위반 위약금과 대규모 고객 이탈이 발생했습니다."
+        }
+      ]
+    },
+    {
+      "stage_id": 2,
+      "situation": "DR 전환 도중 언론사와 주요 B2B 고객사로부터 원인 및 복구 시점에 대한 문의가 쇄도하고 있습니다.",
+      "options": [
+        {
+          "id": "opt_transparent",
+          "label": "상태 페이지(Status Page)에 투명하게 현황 공개 및 30분 단위 정기 업데이트 공지",
+          "impact": { "budget_score": -5, "sla_score": 10, "security_score": 5, "morale_score": 10 },
+          "feedback": "투명한 위기 커뮤니케이션으로 고객 신뢰를 방어하고 엔지니어링 팀이 불필요한 문의 대응에서 벗어나 복구에 집중할 수 있게 했습니다."
+        },
+        {
+          "id": "opt_delay_notice",
+          "label": "완전 복구 전까지 대외 공지를 보류하고 내부 대응에만 집중",
+          "impact": { "budget_score": 0, "sla_score": -15, "security_score": -5, "morale_score": -10 },
+          "feedback": "정보 부재로 인해 SNS에서 보안 침해 루머가 확산되며 브랜드 신뢰도가 크게 하락했습니다."
+        }
+      ]
+    }
+  ],
+  "skill_weights": { "decision_making": 60, "security": 20, "networking": 20 }
+}

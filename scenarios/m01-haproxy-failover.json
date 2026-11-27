@@ -1,0 +1,86 @@
+{
+  "id": "m01-haproxy-failover",
+  "step": 1,
+  "prerequisites": ["j03-permission-firewall"],
+  "title": "HAProxy 로드밸런서 503 장애 및 백엔드 무중단 복구",
+  "level": "Mid-level",
+  "required_tier": "Pro",
+  "mode": "terminal",
+  "estimated_minutes": 25,
+  "category": "Networking / HA",
+  "learning_objectives": [
+    "L7 로드밸런서 헬스체크 실패로 인한 전체 백엔드 DOWN 현상을 진단한다.",
+    "활성 세션 끊김을 방지하기 위해 restart 대신 reload를 활용한 무중단 설정 반영을 수행한다."
+  ],
+  "ticket": {
+    "id": "INC-2088",
+    "priority": "P1 - Critical",
+    "reporter": "이지은 (서비스 PM)",
+    "summary": "메인 웹사이트 접속 시 503 Service Unavailable 발생",
+    "description": "배포 직후 트래픽이 정상 라우팅되지 않습니다. lb-prod-01의 HAProxy 설정 및 백엔드 헬스체크 상태를 점검해 주세요."
+  },
+  "slack_alerts": [
+    {
+      "sender": "Prometheus",
+      "time": "14:05",
+      "message": "[CRITICAL] HAProxy backend web_servers has 0 UP servers"
+    },
+    {
+      "sender": "이지은 (PM)",
+      "time": "14:06",
+      "message": "이벤트 오픈 직전인데 503 에러가 뜹니다! 원인 파악 부탁드려요."
+    }
+  ],
+  "topology": [
+    { "hostname": "lb-prod-01", "role": "HAProxy Active", "vcpu": 2, "ram_mb": 1024 },
+    { "hostname": "web-01", "role": "Nginx Backend", "vcpu": 1, "ram_mb": 512 },
+    { "hostname": "web-02", "role": "Nginx Backend", "vcpu": 1, "ram_mb": 512 }
+  ],
+  "initial_state": {
+    "haproxy_config_fixed": false,
+    "haproxy_reloaded": false
+  },
+  "metrics": { "cpu": 34, "memory": 55, "disk": 41 },
+  "command_rules": [
+    {
+      "match_all": ["cat", "haproxy.cfg"],
+      "require_state": { "haproxy_config_fixed": false },
+      "output": "backend web_servers\n    balance roundrobin\n    option httpchk GET /wrong-health\n    server web-01 10.30.0.11:80 check\n    server web-02 10.30.0.12:80 check"
+    },
+    {
+      "match_all": ["cat", "haproxy.cfg"],
+      "require_state": { "haproxy_config_fixed": true },
+      "output": "backend web_servers\n    balance roundrobin\n    option httpchk GET /healthz\n    server web-01 10.30.0.11:80 check\n    server web-02 10.30.0.12:80 check"
+    },
+    {
+      "match_all": ["sed", "healthz", "haproxy.cfg"],
+      "set_state": { "haproxy_config_fixed": true },
+      "output": "Updated /etc/haproxy/haproxy.cfg: healthcheck path set to /healthz."
+    },
+    {
+      "match_all": ["systemctl", "haproxy"],
+      "match_any": ["reload", "restart"],
+      "require_state": { "haproxy_config_fixed": false },
+      "output": "Reloaded haproxy, but backend servers are still DOWN (404 on /wrong-health)."
+    },
+    {
+      "match_all": ["systemctl", "haproxy"],
+      "match_any": ["reload", "restart"],
+      "require_state": { "haproxy_config_fixed": true },
+      "set_state": { "haproxy_reloaded": true },
+      "set_metrics": { "cpu": 19 },
+      "output": "haproxy.service reloaded gracefully. Backend web_servers: 2/2 UP (HTTP 200)."
+    }
+  ],
+  "state_checks": [
+    { "key": "haproxy_config_fixed", "expected": true, "description": "HAProxy 헬스체크 경로(/healthz) 수정" },
+    { "key": "haproxy_reloaded", "expected": true, "description": "HAProxy 무중단 리로드 및 백엔드 UP 확인" }
+  ],
+  "hints": [
+    "`cat /etc/haproxy/haproxy.cfg`로 백엔드 헬스체크 설정을 확인해 보세요.",
+    "헬스체크 경로가 `/healthz`가 아닌 `/wrong-health`로 설정되어 있습니다.",
+    "`sed -i 's/wrong-health/healthz/g' /etc/haproxy/haproxy.cfg`로 수정 후 `systemctl reload haproxy`를 실행하세요."
+  ],
+  "postmortem_keywords": ["haproxy", "헬스체크", "healthz", "배포", "검증", "ci/cd"],
+  "skill_weights": { "networking": 50, "troubleshooting": 30, "automation": 20 }
+}

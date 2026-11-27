@@ -1,0 +1,77 @@
+{
+  "id": "m02-lvm-online-extend",
+  "step": 2,
+  "prerequisites": ["m01-haproxy-failover"],
+  "title": "운영 중 DB 스토리지 임계치 도달 — 무중단 LVM 볼륨 및 XFS 온라인 증설",
+  "level": "Mid-level",
+  "required_tier": "Pro",
+  "mode": "terminal",
+  "estimated_minutes": 25,
+  "category": "Storage / LVM",
+  "learning_objectives": [
+    "Volume Group(vgs)의 여유 공간(Free PE)을 확인하고 Logical Volume(lvextend)을 확장한다.",
+    "블록 디바이스 확장 후 XFS 파일시스템(xfs_growfs)을 언마운트 없이 온라인으로 증설한다."
+  ],
+  "ticket": {
+    "id": "INC-2140",
+    "priority": "P2 - High",
+    "reporter": "DBA 팀",
+    "summary": "주문 DB 데이터 파티션(/data) 사용률 96% 도달, 서비스 중단 없이 증설 요청",
+    "description": "vg_data 볼륨 그룹에 여유 디스크가 할당되어 있습니다. DB 중단 없이 /data(/dev/vg_data/lv_db) 볼륨을 20G 증설해 주세요."
+  },
+  "slack_alerts": [
+    {
+      "sender": "Node Exporter",
+      "time": "16:30",
+      "message": "[WARNING] /data mountpoint usage 96% on db-cluster-01 (XFS)"
+    }
+  ],
+  "topology": [
+    { "hostname": "db-cluster-01", "role": "MySQL InnoDB Node", "vcpu": 2, "ram_mb": 2048 }
+  ],
+  "initial_state": {
+    "lv_extended": false,
+    "xfs_grown": false
+  },
+  "metrics": { "cpu": 41, "memory": 68, "disk": 96 },
+  "command_rules": [
+    {
+      "match_all": ["vgs"],
+      "require_state": { "lv_extended": false },
+      "output": "  VG      #PV #LV #SN Attr   VSize   VFree\n  vg_data   2   1   0 wz--n- 100.00g 50.00g"
+    },
+    {
+      "match_all": ["vgs"],
+      "require_state": { "lv_extended": true },
+      "output": "  VG      #PV #LV #SN Attr   VSize   VFree\n  vg_data   2   1   0 wz--n- 100.00g 30.00g"
+    },
+    {
+      "match_all": ["lvextend", "lv_db"],
+      "set_state": { "lv_extended": true },
+      "output": "  Size of logical volume vg_data/lv_db changed from 50.00 GiB to 70.00 GiB.\n  Logical volume vg_data/lv_db successfully resized."
+    },
+    {
+      "match_all": ["xfs_growfs", "/data"],
+      "require_state": { "lv_extended": false },
+      "output": "xfs_growfs: /data block device size unchanged. Extend LV first."
+    },
+    {
+      "match_all": ["xfs_growfs", "/data"],
+      "require_state": { "lv_extended": true },
+      "set_state": { "xfs_grown": true },
+      "set_metrics": { "disk": 68 },
+      "output": "data blocks changed from 13107200 to 18350080. /data online expansion completed (Usage: 68%)."
+    }
+  ],
+  "state_checks": [
+    { "key": "lv_extended", "expected": true, "description": "lvextend로 논리 볼륨(/dev/vg_data/lv_db) 확장" },
+    { "key": "xfs_grown", "expected": true, "description": "xfs_growfs로 /data 파일시스템 온라인 증설 반영" }
+  ],
+  "hints": [
+    "`vgs` 명령어로 `vg_data` 볼륨 그룹에 여유 용량(VFree)이 있는지 확인하세요.",
+    "`lvextend -L +20G /dev/vg_data/lv_db` 명령어로 논리 볼륨 크기를 늘리세요.",
+    "마지막으로 `xfs_growfs /data`를 실행해야 실제 파일시스템 크기가 온라인으로 늘어납니다."
+  ],
+  "postmortem_keywords": ["lvm", "lvextend", "xfs_growfs", "용량", "사전", "증설"],
+  "skill_weights": { "os_kernel": 30, "automation": 50, "troubleshooting": 20 }
+}
